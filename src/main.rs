@@ -220,7 +220,7 @@ async fn main() -> Result<()> {
                         loop {
                             // Add pause before each retry except the first attempt
                             if attempts > 0 {
-                                let jitter = rng.random_range(1000..=3000);
+                                let jitter = rng.random_range(3000..=6000);
                                 sleep(delay + Duration::from_millis(jitter)).await;
                                 delay *= 2;
                             }
@@ -308,7 +308,7 @@ async fn main() -> Result<()> {
                             i.to_string().bright_blue()
                         );
 
-                        let jitter = rng.random_range(1000..=3000);
+                        let jitter = rng.random_range(3000..=6000);
                         sleep(Duration::from_millis(jitter)).await;
                     }
                 } else {
