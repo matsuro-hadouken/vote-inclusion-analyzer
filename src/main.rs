@@ -73,11 +73,22 @@ async fn get_block_with_retry(
 ) -> Result<Option<BlockResult>> {
     let mut attempts = 0;
     let mut delay = Duration::from_secs(3);
+    let mut not_found_lines = 0; // Track retry lines
 
     loop {
         let res = get_block(client, api_url, slot).await;
         match &res {
-            Ok(Some(_)) => return res,
+            Ok(Some(_)) => {
+                // Clean up retry messages if any
+                if not_found_lines > 0 {
+                    for _ in 0..not_found_lines {
+                        print!("\x1b[1A\x1b[2K");
+                    }
+                    print!("\r");
+                    std::io::Write::flush(&mut std::io::stdout()).unwrap();
+                }
+                return res;
+            }
             Ok(None) => {
                 if attempts < max_attempts {
                     attempts += 1;
@@ -85,6 +96,7 @@ async fn get_block_with_retry(
                         "Block {} not found (attempt {}). Retrying in {:?}...",
                         slot, attempts, delay
                     );
+                    not_found_lines += 1;
                     sleep(delay).await;
                     delay *= 2;
                     continue;
@@ -99,6 +111,7 @@ async fn get_block_with_retry(
                         "Error fetching block {}: {}. Retrying in {:?}...",
                         slot, e, delay
                     );
+                    not_found_lines += 1;
                     sleep(delay).await;
                     delay *= 2;
                     continue;
@@ -202,8 +215,9 @@ async fn main() -> Result<()> {
                     .unwrap_or_else(|| "unknown".to_string());
 
                 if !matches.is_empty() {
+                    // For slots WITH votes:
                     println!(
-                        "\n{} {}  {} {} {} {}\n",
+                        "\n{:<7} {:<10} {:<7} {:<6} {:<8} {}\n",
                         "Slot:".bold(),
                         current_slot.to_string().green(),
                         "Votes:".bold(),
@@ -286,32 +300,33 @@ async fn main() -> Result<()> {
 
                         // Print result after spinner and after any rate limit message cleanup
                         println!(
-                            "{} {}",
-                            "Signature:".bold().bright_magenta(),
-                            sig.bright_white()
+                            "{:<12} {}",
+                            "Signature:",
+                            sig.dimmed()
                         );
 
                         match voted_slot_result {
                             Ok(Some(vote_slot)) => println!(
-                                "{} [{}]",
-                                "Voted slot:".bold(),
+                                "{:<12} {}",
+                                "Voted slot:",
                                 vote_slot.to_string().bright_yellow()
                             ),
                             Ok(None) => println!(
-                                "{}",
-                                "[unknown vote slot]".dimmed()
+                                "{:<12} {}",
+                                "Voted slot:",
+                                "[unknown]".dimmed()
                             ),
                             Err(e) => println!(
-                                "{} {} {}",
-                                "[error extracting vote slot]".red(),
-                                sig.bright_white(),
+                                "{:<12} {} {}",
+                                "[error]".red(),
+                                sig.dimmed(),
                                 format!("({})", e).dimmed()
                             ),
                         }
 
                         println!(
-                            "{} {}\n",
-                            "Position:".bold(),
+                            "{:<12} {}\n",
+                            "Position:",
                             i.to_string().bright_blue()
                         );
 
@@ -319,8 +334,9 @@ async fn main() -> Result<()> {
                         sleep(Duration::from_millis(jitter)).await;
                     }
                 } else {
+                    // For slots WITHOUT votes:
                     println!(
-                        "\n{} {}  {} {} {} {} {}\n",
+                        "\n{:<7} {:<10} {:<7} {:<6} {:<8} {} {}\n",
                         "Slot:".bold(),
                         current_slot.to_string().green(),
                         "Votes:".bold(),
