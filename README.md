@@ -1,31 +1,25 @@
 # vote-inclusion-analyzer
 
-Checks for vote transactions by slot/account, with leader schedule and retry logic.
+**Checks for vote transactions by slot/account, with leader schedule and retry logic.**
+
+**Note:**
+_These RPC calls are very heavy. I've implemented extensive rate_limit handling to make this tool usable for everyone, but this can make the CLI slow and not ideal. Some queries may take a long time to complete. For best results, try to use a faster or less busy RPC endpoint. If a query appears stuck, please wait or try running the tool again, it will usually succeed eventually._
+
+Let me know if you want it even shorter or more formal!
 
 ## Usage
 
 ```sh
-cargo run --release -- \
-  --url <RPC_URL> \
-  --account <VOTE_ACCOUNT_PUBKEY> \
-  --slot <START_SLOT> \
-  --distance <N>
+vote-inclusion-analyzer --url https://api.mainnet-beta.solana.com \
+                        --account GwHH8ciFhR8vejWCqmg8FWZUCNtubPY2esALvy5tBvji \
+                        --slot 344883706 \
+                        --distance 10
 ```
 
 - `--url`      RPC endpoint (e.g. https://api.mainnet-beta.solana.com)
 - `--account`  Vote account pubkey to filter for
 - `--slot`     Starting slot number
 - `--distance` How many slots back to check (inclusive)
-
-## Example
-
-```sh
-cargo run --release -- \
-  --url https://api.mainnet-beta.solana.com \
-  --account 5Y5Q5... \
-  --slot 344883706 \
-  --distance 10
-```
 
 ## Dependencies
 
