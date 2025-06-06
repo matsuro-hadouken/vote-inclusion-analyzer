@@ -72,7 +72,7 @@ async fn get_block_with_retry(
     max_attempts: usize,
 ) -> Result<Option<BlockResult>> {
     let mut attempts = 0;
-    let mut delay = Duration::from_secs(2);
+    let mut delay = Duration::from_secs(3);
 
     loop {
         let res = get_block(client, api_url, slot).await;
@@ -117,7 +117,7 @@ async fn get_leader_map_with_retry(
     max_attempts: usize,
 ) -> anyhow::Result<HashMap<u64, String>> {
     let mut attempts = 0;
-    let mut delay = Duration::from_secs(2);
+    let mut delay = Duration::from_secs(3);
 
     loop {
         let pb = ProgressBar::new_spinner();
@@ -213,11 +213,18 @@ async fn main() -> Result<()> {
 
                         let mut attempts = 0;
                         let max_attempts = 5;
-                        let mut delay = Duration::from_secs(2);
+                        let mut delay = Duration::from_secs(3);
                         let voted_slot_result;
                         let mut rate_limit_lines = 0;
 
                         loop {
+                            // Add pause before each retry except the first attempt
+                            if attempts > 0 {
+                                let jitter = rng.random_range(1000..=3000);
+                                sleep(delay + Duration::from_millis(jitter)).await;
+                                delay *= 2;
+                            }
+
                             // Spinner for fetching transaction details
                             let pb = ProgressBar::new_spinner();
                             pb.set_style(ProgressStyle::default_spinner()
@@ -253,10 +260,6 @@ async fn main() -> Result<()> {
                                             delay, attempts, max_attempts
                                         );
                                         rate_limit_lines += 1;
-                                        // Add random jitter (1-3s) to the delay
-                                        let jitter = rng.random_range(1000..=3000);
-                                        sleep(delay + Duration::from_millis(jitter)).await;
-                                        delay *= 2;
                                         continue;
                                     } else {
                                         // Clean up rate limit messages if any (also on error)
@@ -304,6 +307,9 @@ async fn main() -> Result<()> {
                             "Position:".bold(),
                             i.to_string().bright_blue()
                         );
+
+                        let jitter = rng.random_range(1000..=3000);
+                        sleep(Duration::from_millis(jitter)).await;
                     }
                 } else {
                     let leader_info = leader_map
