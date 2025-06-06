@@ -5,8 +5,6 @@
 **Note:**
 _These RPC calls are very heavy. I've implemented extensive rate_limit handling to make this tool usable for everyone, but this can make the CLI slow and not ideal. Some queries may take a long time to complete. For best results, try to use a faster or less busy RPC endpoint. If a query appears stuck, please wait or try running the tool again, it will usually succeed eventually._
 
-Let me know if you want it even shorter or more formal!
-
 ## Usage
 
 ```sh
