@@ -16,7 +16,6 @@ use solana_program::vote::instruction::VoteInstruction;
 use solana_client::rpc_response::RpcLeaderSchedule;
 use indicatif::{ProgressBar, ProgressStyle};
 
-/// CLI args: all required, no defaults.
 #[derive(Parser, Debug)]
 #[command(name = "Vote Checker", about = "Check vote transactions by slot/account")]
 struct Args {
@@ -64,7 +63,6 @@ struct TransactionMeta {
     log_messages: Option<Vec<String>>,
 }
 
-/// Retry get_block with exponential backoff on errors or None results.
 async fn get_block_with_retry(
     client: &Client,
     api_url: &str,
@@ -73,13 +71,12 @@ async fn get_block_with_retry(
 ) -> Result<Option<BlockResult>> {
     let mut attempts = 0;
     let mut delay = Duration::from_secs(3);
-    let mut not_found_lines = 0; // Track retry lines
+    let mut not_found_lines = 0;
 
     loop {
         let res = get_block(client, api_url, slot).await;
         match &res {
             Ok(Some(_)) => {
-                // Clean up retry messages if any
                 if not_found_lines > 0 {
                     for _ in 0..not_found_lines {
                         print!("\x1b[1A\x1b[2K");
@@ -123,7 +120,6 @@ async fn get_block_with_retry(
     }
 }
 
-/// Retry leader schedule fetch with exponential backoff and rate limit handling.
 async fn get_leader_map_with_retry(
     rpc_url: &str,
     slot: u64,
@@ -147,7 +143,6 @@ async fn get_leader_map_with_retry(
 
         match result {
             Ok(map) => {
-                // No extra message, just continue
                 return Ok(map);
             }
             Err(e) => {
@@ -183,7 +178,6 @@ async fn main() -> Result<()> {
         "==============================".bright_black()
     );
 
-    // Maybe better retry logic for leader schedule
     let leader_map = get_leader_map_with_retry(&args.url, args.slot, 5).await
         .context("Could not fetch leader schedule (rate limited or RPC error). Exiting.")?;
 
@@ -199,7 +193,6 @@ async fn main() -> Result<()> {
                 let vote_txs = extract_vote_transactions(&block);
                 let vote_count = vote_txs.len();
 
-                // Collect all matching transactions for this account in this block
                 let mut matches = vec![];
                 for (i, tx) in vote_txs.iter().enumerate() {
                     if let Some(account) = tx.transaction.message.account_keys.get(0) {
@@ -215,7 +208,6 @@ async fn main() -> Result<()> {
                     .unwrap_or_else(|| "unknown".to_string());
 
                 if !matches.is_empty() {
-                    // For slots WITH votes:
                     println!(
                         "\n{:<7} {:<10} {:<7} {:<6} {:<8} {}\n",
                         "Slot:".bold(),
@@ -226,8 +218,7 @@ async fn main() -> Result<()> {
                         leader_info.bright_black()
                     );
 
-                    // Place this before your for-loop over matches:
-                    let mut rng = rand::rng(); // or rand::thread_rng() for older rand
+                    let mut rng = rand::rng();
 
                     for (i, tx) in matches {
                         let sig = &tx.transaction.signatures[0];
@@ -239,14 +230,12 @@ async fn main() -> Result<()> {
                         let mut rate_limit_lines = 0;
 
                         loop {
-                            // Add pause before each retry except the first attempt
                             if attempts > 0 {
                                 let jitter = rng.random_range(3000..=6000);
                                 sleep(delay + Duration::from_millis(jitter)).await;
                                 delay *= 2;
                             }
 
-                            // Spinner for fetching transaction details
                             let pb = ProgressBar::new_spinner();
                             pb.set_style(ProgressStyle::default_spinner()
                                 .template("{spinner} {msg}")
@@ -260,7 +249,6 @@ async fn main() -> Result<()> {
 
                             match &result {
                                 Ok(Some(_)) | Ok(None) => {
-                                    // Clean up rate limit messages if any
                                     if rate_limit_lines > 0 {
                                         for _ in 0..rate_limit_lines {
                                             print!("\x1b[1A\x1b[2K");
@@ -283,7 +271,6 @@ async fn main() -> Result<()> {
                                         rate_limit_lines += 1;
                                         continue;
                                     } else {
-                                        // Clean up rate limit messages if any (also on error)
                                         if rate_limit_lines > 0 {
                                             for _ in 0..rate_limit_lines {
                                                 print!("\x1b[1A\x1b[2K");
@@ -298,7 +285,6 @@ async fn main() -> Result<()> {
                             }
                         }
 
-                        // Print result after spinner and after any rate limit message cleanup
                         println!(
                             "{:<12} {}",
                             "Signature:",
@@ -334,7 +320,6 @@ async fn main() -> Result<()> {
                         sleep(Duration::from_millis(jitter)).await;
                     }
                 } else {
-                    // For slots WITHOUT votes:
                     println!(
                         "\n{:<7} {:<10} {:<7} {:<6} {:<8} {} {}\n",
                         "Slot:".bold(),
@@ -369,7 +354,6 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-/// Extract only vote transactions by looking for Vote program log in transaction meta.
 fn extract_vote_transactions(block: &BlockResult) -> Vec<&Transaction> {
     block
         .transactions
@@ -387,7 +371,6 @@ fn extract_vote_transactions(block: &BlockResult) -> Vec<&Transaction> {
         .collect()
 }
 
-/// Raw getBlock RPC call, returns block data or None if not found.
 async fn get_block(client: &Client, api_url: &str, slot: u64) -> Result<Option<BlockResult>> {
     let body = json!({
         "jsonrpc": "2.0",
@@ -419,9 +402,6 @@ async fn get_block(client: &Client, api_url: &str, slot: u64) -> Result<Option<B
     Ok(block_resp.result)
 }
 
-/// Extract the voted slot from a vote transaction signature.
-/// Handles both Vote and TowerSync instructions.
-/// Retries on RPC rate limit (429) with exponential backoff.
 async fn extract_voted_slot(
     rpc_url: &str,
     signature: &str,
@@ -455,7 +435,6 @@ async fn extract_voted_slot(
         }
     }
 
-    // Defensive debug print for unexpected transaction structure.
     let print_debug = |reason: &str| {
         eprintln!(
             "DEBUG: Could not extract voted slot for signature {} ({}). Full transaction JSON:\n{}",
@@ -559,7 +538,6 @@ async fn extract_voted_slot(
     Ok(None)
 }
 
-/// Map absolute slot -> leader identity for the epoch containing the given slot.
 fn map_leader_slots(
     client: &RpcClient,
     slot: u64,
@@ -579,7 +557,6 @@ fn map_leader_slots(
     Ok(slot_to_leader)
 }
 
-/// Get the first slot of the epoch for a given slot.
 fn get_epoch_start_slot(
     client: &RpcClient,
     slot: u64,
