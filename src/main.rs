@@ -196,13 +196,20 @@ async fn main() -> Result<()> {
                     }
                 }
 
+                let leader_info = leader_map
+                    .get(&current_slot)
+                    .map(|l| format!("{}", l))
+                    .unwrap_or_else(|| "unknown".to_string());
+
                 if !matches.is_empty() {
                     println!(
-                        "\n{} {}  {} {}\n",
+                        "\n{} {}  {} {} {} {}\n",
                         "Slot:".bold(),
                         current_slot.to_string().green(),
                         "Votes:".bold(),
-                        vote_count.to_string().cyan()
+                        vote_count.to_string().cyan(),
+                        "Leader:".bold(),
+                        leader_info.bright_black()
                     );
 
                     // Place this before your for-loop over matches:
@@ -312,18 +319,14 @@ async fn main() -> Result<()> {
                         sleep(Duration::from_millis(jitter)).await;
                     }
                 } else {
-                    let leader_info = leader_map
-                        .get(&current_slot)
-                        .map(|l| format!("Slot leader: {}", l))
-                        .unwrap_or_else(|| "Slot leader: unknown".to_string());
-
                     println!(
-                        "\n{} {}  {} {} {}\n{}\n",
+                        "\n{} {}  {} {} {} {} {}\n",
                         "Slot:".bold(),
                         current_slot.to_string().green(),
                         "Votes:".bold(),
                         vote_count.to_string().cyan(),
                         "[X]".red(),
+                        "Leader:".bold(),
                         leader_info.bright_black()
                     );
                 }
